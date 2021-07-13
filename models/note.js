@@ -12,6 +12,10 @@ const noteSchema = new mongoose.Schema({
     required: true
   },
   important: Boolean,
+  user: {
+    type: mongoose.Schema.Types.ObjectId, // to tell mongoose it's an id
+    ref: 'User' // the name of the model it refers to
+  }
 });
 
 // set up JSON output for all the instances of noteSchema

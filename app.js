@@ -3,9 +3,12 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const notesRouter = require('./controllers/notes');
+const usersRouter = require('./controllers/users');
+const loginRouter = require('./controllers/login');
 const middleware = require('./utils/middleware');
 const logger = require('./utils/logger');
 const mongoose = require('mongoose');
+require('express-async-errors');
 
 logger.info('connecting to', config.MONGODB_URI);
 mongoose.connect(config.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true })
@@ -24,6 +27,8 @@ app.use(middleware.requestLogger);
 
 // routing
 app.use('/api/notes', notesRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/login', loginRouter);
 
 // use after routing
 app.use(middleware.unknownEndpoint);

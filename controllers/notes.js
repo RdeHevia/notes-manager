@@ -1,13 +1,24 @@
+/* eslint-disable max-lines-per-function */
 const notesRouter = require('express').Router();
 const Note = require('../models/note');
+const User = require('../models/user');
+const jwt = require('jsonwebtoken');
+
+const getTokenFrom = req => {
+  const authorization = req.get('authorization');
+  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.substring(7);
+  }
+
+  return null;
+};
 
 // ROUTES for...
 // ...fetching a collection.
 // Sent as a json file and set the Content-Type to 'application/json'
-notesRouter.get('/', (req, res) => {
-  Note.find({}).then(notes => {
-    res.json(notes);
-  });
+notesRouter.get('/', async (req, res) => {
+  const notes = await Note.find({}).populate('user', {username: 1, name: 1});
+  res.json(notes);
 });
 
 // ...fetching a single resource (element)
@@ -22,23 +33,35 @@ notesRouter.get('/:id', (req, res, next) => {
 });
 
 // ...create a new resource
-notesRouter.post('/', (req, res, next) => {
+notesRouter.post('/', async (req, res, next) => {
   const body = req.body;
+  const token = getTokenFrom(req);
+  // verify token is valid and returns object token with id and username
+  const decodedToken = jwt.verify(token, process.env.SECRET);
+  if (!token || !decodedToken.id) {
+    return res.status(401).json({error: 'token missing or invalid'});
+  }
   if (!body.content) {
     return res.status(400).json({error: 'content missing'});
     // set status to 400 and res with an error message in json format
   }
 
+  // extract id from decode token object
+  const user = await User.findById(decodedToken.id);
+
   const note = new Note({
     content: body.content,
     important: body.important || false,
-    date: new Date()
+    date: new Date(),
+    user: user._id
   });
 
-  note.save()
-    .then(savedNote => savedNote.toJSON())
-    .then(savedAndFormattedNote => res.json(savedAndFormattedNote))
-    .catch(error => next(error));
+  const savedNote = await note.save().catch(err => next(err));
+  user.notes = user.notes.concat(savedNote._id);
+  await user.save();
+
+  const savedAndFormattedNote = savedNote.toJSON();
+  res.json(savedAndFormattedNote);
 });
 
 notesRouter.put('/:id', (req, res, next) => {
